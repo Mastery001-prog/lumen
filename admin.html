@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lumen · Générateur de catalogue</title>
+<style>
+:root{--bg:#0d0e12;--panel:#171922;--line:#2a2d3b;--txt:#eceef4;--mut:#9096a8;--acc:#8b6cff;--bad:#ff6b6b}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--txt);font-family:"Segoe UI",system-ui,sans-serif;padding:20px 4vw 80px;max-width:960px;margin:auto}
+h1{font-size:26px;margin:10px 0 4px;letter-spacing:-.02em}h1 a{color:var(--acc);text-decoration:none}
+h2{font-size:17px;margin-bottom:12px}.sub{color:var(--mut);margin-bottom:22px;line-height:1.5}small{color:var(--mut)}
+.box{background:var(--panel);border-radius:12px;padding:18px;margin-bottom:18px}
+label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+input,select,textarea{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--txt);font:inherit}
+textarea{min-height:70px;resize:vertical}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.g3{display:grid;grid-template-columns:80px 80px 1fr;gap:10px}
+@media(max-width:560px){.g2,.g3{grid-template-columns:1fr}}
+button{font:inherit;cursor:pointer;border:0;border-radius:8px;padding:10px 18px;background:var(--acc);color:#fff;font-weight:600;margin-top:14px}
+button.s{background:var(--line);margin-top:8px;padding:7px 12px;font-size:13px}button.d{background:none;color:var(--bad);margin:0;padding:6px 10px;font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}.chip{background:var(--bg);border:1px solid var(--line);padding:6px 6px 6px 12px;border-radius:99px;font-size:14px;display:flex;align-items:center;gap:4px}
+.chip button{padding:0 8px;margin:0;background:none;color:var(--mut);font-size:16px}
+.add{display:flex;gap:8px}.add button{margin:0}
+.it{border-top:1px solid var(--line);padding:14px 0}.it:first-child{border-top:0}
+.ith{display:flex;gap:10px;align-items:center;justify-content:space-between}
+.eps{margin:8px 0 0 12px}.ep{display:flex;align-items:center;justify-content:space-between;font-size:14px;padding:4px 0;gap:8px}.ep span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--line);padding:12px 4vw;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.bar button{margin:0}.bar .alt{background:var(--line)}
+#msg{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--txt);color:#111;padding:10px 18px;border-radius:99px;display:none;font-weight:600}
+</style>
+</head>
+<body>
+<h1><a href="index.html">Lumen</a> · Générateur de catalogue</h1>
+<p class="sub">Remplis tes catégories, titres et épisodes. Ensuite clique sur « Télécharger catalog.json » et remplace le fichier du même nom dans ton dépôt GitHub. Les modifications sont gardées dans ce navigateur en attendant. Mets uniquement des vidéos dont tu as les droits.</p>
+
+<div class="box"><h2>Catégories</h2><div class="chips" id="cats"></div>
+<div class="add"><input id="newcat" placeholder="Nouvelle catégorie (Action, Humour, Docu…)"><button onclick="addCat()">Ajouter</button></div></div>
+
+<div class="box"><h2>Nouveau titre</h2>
+<div class="g2"><div><label for="t">Titre</label><input id="t"></div><div><label for="ty">Type</label><select id="ty"><option value="movie">Film</option><option value="series">Série</option></select></div></div>
+<div class="g2"><div><label for="ca">Catégorie</label><select id="ca"></select></div><div><label for="y">Année</label><input id="y" inputmode="numeric" maxlength="4"></div></div>
+<label for="de">Description</label><textarea id="de"></textarea>
+<label for="po">Affiche : chemin ou lien (ex. posters/monfilm.jpg)</label><input id="po" placeholder="posters/monfilm.jpg">
+<button onclick="addItem()">Créer le titre</button></div>
+
+<div class="box"><h2>Catalogue</h2><div id="list"></div></div>
+
+<div class="bar"><button onclick="dl()">Télécharger catalog.json</button><button class="alt" onclick="cp()">Copier le JSON</button><button class="alt" onclick="reload()">Recharger depuis le site</button></div>
+<div id="msg"></div>
+<script>
+const $=s=>document.querySelector(s);let DB={categories:[],items:[]};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,10);
+const msg=t=>{const m=$('#msg');m.textContent=t;m.style.display='block';clearTimeout(m._t);m._t=setTimeout(()=>m.style.display='none',2400)};
+const save=()=>{localStorage.lumenDraft=JSON.stringify(DB);render()};
+const find=id=>DB.items.find(i=>i.id===id);
+async function reload(){try{DB=await(await fetch('catalog.json',{cache:'no-cache'})).json()}catch{DB={categories:['Films','Séries'],items:[]}}save();msg('Catalogue rechargé')}
+async function init(){try{DB=JSON.parse(localStorage.lumenDraft)}catch{await reload();return}render()}
+function render(){
+  $('#cats').innerHTML=DB.categories.map((c,i)=>`<span class="chip">${esc(c)}<button onclick="delCat(${i})" aria-label="Supprimer">×</button></span>`).join('')||'<small>Aucune catégorie</small>';
+  $('#ca').innerHTML='<option value="">Sans catégorie</option>'+DB.categories.map(c=>`<option>${esc(c)}</option>`).join('');
+  $('#list').innerHTML=DB.items.length?DB.items.map(it=>{const s=it.type==='series',can=s||!it.episodes.length;return `<div class="it"><div class="ith"><div><b>${esc(it.title)}</b><br><small>${s?'Série':'Film'} · ${esc(it.category||'Sans catégorie')}</small></div><button class="d" onclick="delItem('${it.id}')">Supprimer</button></div>
+  <div class="eps">${it.episodes.map(e=>`<div class="ep"><span>${s?`S${e.season} E${e.num} · `:''}${esc(e.title)} <small>${esc(e.video)}</small></span><button class="d" onclick="delEp('${it.id}','${e.id}')">×</button></div>`).join('')}
+  ${can?`<div class="g3" style="margin-top:8px">${s?`<input id="s${it.id}" value="1" inputmode="numeric" aria-label="Saison"><input id="n${it.id}" value="${it.episodes.length+1}" inputmode="numeric" aria-label="Numéro"><input id="e${it.id}" placeholder="Titre de l'épisode">`:''}</div>
+  <input id="f${it.id}" placeholder="Lien ou chemin de la vidéo (https://…/film.mp4 ou videos/film.mp4)" style="margin-top:8px"><button class="s" onclick="addEp('${it.id}')">Ajouter la vidéo</button>`:''}</div></div>`}).join(''):'<small>Rien pour l\'instant.</small>';
+}
+function addCat(){const n=$('#newcat').value.trim();if(n&&!DB.categories.includes(n))DB.categories.push(n);$('#newcat').value='';save()}
+function delCat(i){const c=DB.categories[i];DB.categories.splice(i,1);DB.items.forEach(x=>{if(x.category===c)x.category=''});save()}
+function addItem(){const t=$('#t').value.trim();if(!t)return msg('Mets un titre');
+  DB.items.push({id:uid(),title:t,desc:$('#de').value,type:$('#ty').value,category:$('#ca').value,year:$('#y').value,poster:$('#po').value.trim(),episodes:[],added:Date.now()});
+  ['t','y','de','po'].forEach(i=>$('#'+i).value='');save();msg('Titre créé : ajoute maintenant sa vidéo')}
+function delItem(id){if(confirm('Supprimer ce titre ?')){DB.items=DB.items.filter(i=>i.id!==id);save()}}
+function addEp(id){const it=find(id),v=$('#f'+id).value.trim();if(!v)return msg('Colle le lien de la vidéo');
+  it.episodes.push({id:uid(),season:+($('#s'+id)||{}).value||1,num:+($('#n'+id)||{}).value||it.episodes.length+1,title:($('#e'+id)||{}).value||(it.type==='movie'?it.title:'Épisode '+(it.episodes.length+1)),video:v});
+  it.episodes.sort((a,b)=>a.season-b.season||a.num-b.num);save()}
+function delEp(i,e){const it=find(i);it.episodes=it.episodes.filter(x=>x.id!==e);save()}
+const json=()=>JSON.stringify(DB,null,2);
+function dl(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([json()],{type:'application/json'}));a.download='catalog.json';a.click();msg('Remplace catalog.json dans ton dépôt')}
+function cp(){navigator.clipboard.writeText(json()).then(()=>msg('JSON copié'),()=>msg('Copie impossible : utilise le téléchargement'))}
+init();
+</script>
+</body>
+</html>
